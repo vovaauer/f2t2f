@@ -1,0 +1,29 @@
+Metadata-Version: 2.4
+Name: f2t2f
+Version: 0.1.0
+Summary: A CLI tool to serialize folder structures to text and back.
+Home-page: https://github.com/vovaauer/f2t2f
+Author: Vova Auer
+Author-email: mail@vovaauer.com
+License: MIT
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Topic :: Utilities
+Classifier: Environment :: Console
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: click
+Requires-Dist: pyperclip
+Requires-Dist: platformdirs
+Dynamic: author
+Dynamic: author-email
+Dynamic: classifier
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

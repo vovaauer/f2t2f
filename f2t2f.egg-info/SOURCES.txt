@@ -1,0 +1,15 @@
+LICENSE
+README.md
+pyproject.toml
+setup.py
+f2t2f/__init__.py
+f2t2f/cli.py
+f2t2f/config.py
+f2t2f/folder_ops.py
+f2t2f/text_formatter.py
+f2t2f.egg-info/PKG-INFO
+f2t2f.egg-info/SOURCES.txt
+f2t2f.egg-info/dependency_links.txt
+f2t2f.egg-info/entry_points.txt
+f2t2f.egg-info/requires.txt
+f2t2f.egg-info/top_level.txt

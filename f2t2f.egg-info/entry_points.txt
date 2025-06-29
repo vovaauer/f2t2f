@@ -1,0 +1,2 @@
+[console_scripts]
+f2t2f = f2t2f.cli:cli
