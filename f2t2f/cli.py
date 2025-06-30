@@ -51,12 +51,11 @@ def paste(destination_path):
         
         json_input = pyperclip.paste()
         if not json_input:
-            raise ValueError("Clipboard is empty.")
+            raise ValueError("Clipboard is empty or does not contain text.")
             
         click.echo("Reading structure from clipboard...")
         structure_data = deserialize_from_json(json_input)
         
-        # Logic to prevent creating a nested folder (e.g., f2t2f/f2t2f)
         base_creation_path = dest_path
         if dest_path.name == structure_data['name']:
             click.secho(f"Destination '{dest_path.name}' matches structure root. Overwriting contents.", fg="yellow")
@@ -65,8 +64,10 @@ def paste(destination_path):
         click.echo(f"Creating structure '{structure_data['name']}' in '{base_creation_path}'...")
         create_directory_from_structure(structure_data, base_creation_path)
         click.secho("Folder structure created successfully.", fg='green')
-    except Exception as e:
+    except ValueError as e:
         click.secho(f"Error: {e}", fg='red')
+    except Exception as e:
+        click.secho(f"An unexpected error occurred: {e}", fg='red')
 
 @cli.command()
 @click.argument('input_file', type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True))
@@ -85,17 +86,18 @@ def load(input_file, destination_path):
         click.echo(f"Reading structure from '{input_path.name}'...")
         structure_data = deserialize_from_json(json_input)
 
-        # Logic to prevent creating a nested folder (e.g., f2t2f/f2t2f)
         base_creation_path = dest_path
         if dest_path.name == structure_data['name']:
             click.secho(f"Destination '{dest_path.name}' matches structure root. Overwriting contents.", fg="yellow")
             base_creation_path = dest_path.parent
 
         click.echo(f"Creating structure '{structure_data['name']}' in '{base_creation_path}'...")
-        create_directory_from_structure(structure_data, base_creation_path)
+        create_directory_from_structure(structure_data, dest_path)
         click.secho("Folder structure created successfully.", fg='green')
-    except Exception as e:
+    except (ValueError, FileNotFoundError) as e:
         click.secho(f"Error: {e}", fg='red')
+    except Exception as e:
+        click.secho(f"An unexpected error occurred: {e}", fg='red')
 
 @cli.group()
 def config():

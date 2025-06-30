@@ -15,17 +15,21 @@ def serialize_to_json(folder_data: dict) -> str:
 def deserialize_from_json(json_string: str) -> dict:
     """
     Deserializes a JSON string back into a folder structure dictionary,
-    validating the format.
+    validating the format and providing detailed error messages.
     """
     try:
         data = json.loads(json_string)
-    except json.JSONDecodeError:
-        raise ValueError("Invalid JSON format.")
+    except json.JSONDecodeError as e:
+        error_message = f"Invalid JSON syntax: {e.msg} at line {e.lineno}, column {e.colno}."
+        raise ValueError(error_message)
 
-    if not isinstance(data, dict) or data.get("type") != F2T2F_MARKER:
-        raise ValueError("JSON is not a valid f2t2f folder structure format.")
+    if not isinstance(data, dict):
+        raise ValueError("The provided text is not a valid JSON object.")
+        
+    if data.get("type") != F2T2F_MARKER:
+        raise ValueError(f"Not a valid f2t2f structure. The 'type' key must be '{F2T2F_MARKER}'.")
     
     if "data" not in data:
-        raise ValueError("Invalid f2t2f format: 'data' key is missing.")
+        raise ValueError("Not a valid f2t2f structure. The top-level 'data' key is missing.")
 
     return data["data"]

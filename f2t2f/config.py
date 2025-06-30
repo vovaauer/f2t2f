@@ -6,7 +6,6 @@ APP_NAME = "f2t2f"
 APP_AUTHOR = "vovaauer"
 CONFIG_FILENAME = "config.json"
 
-# Default patterns if no config file is found.
 DEFAULT_IGNORE_PATTERNS = [
     "__pycache__",
     "*.egg-info",
