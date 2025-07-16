@@ -1,143 +1,196 @@
-import click
-import pyperclip
+import json
 from pathlib import Path
+import re
 
-from .folder_ops import read_directory_structure, create_directory_from_structure
-from .text_formatter import serialize_to_json, serialize_to_v2, deserialize
-from .config import get_config_path, save_default_config
+# --- V1 Format Constants and Functions ---
+F2T2F_V1_MARKER = "f2t2f_folder_structure_v1"
 
-@click.group()
-def cli():
-    """f2t2f: A tool to convert folder structures to text and back."""
-    pass
+def serialize_to_json(folder_data: dict) -> str:
+    """
+    Serializes the folder structure dictionary to a V1 JSON string.
+    """
+    wrapper = {
+        "type": F2T2F_V1_MARKER,
+        "data": folder_data
+    }
+    return json.dumps(wrapper, indent=2)
 
-@cli.command()
-@click.argument('folder_path', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
-@click.option('--format', 'output_format', type=click.Choice(['json', 'v2'], case_sensitive=False), default='v2', help='The output format. V2 is more readable and efficient.')
-def copy(folder_path, output_format):
-    """Serialize a folder structure to the clipboard."""
+def deserialize_from_json(json_string: str) -> dict:
+    """
+    Deserializes a V1 JSON string back into a folder structure dictionary.
+    """
     try:
-        path = Path(folder_path)
-        click.echo(f"Reading structure from '{path.name}'...")
-        structure = read_directory_structure(path)
+        data = json.loads(json_string)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON: {e.msg} at line {e.lineno}, col {e.colno}.")
+
+    if not isinstance(data, dict):
+        raise ValueError("The provided text is not a valid JSON object.")
         
-        if output_format == 'v2':
-            output_text = serialize_to_v2(structure)
-        else:
-            output_text = serialize_to_json(structure)
-
-        pyperclip.copy(output_text)
-        click.secho(f"Successfully copied structure of '{path.name}' to clipboard in {output_format.upper()} format.", fg='green')
-    except Exception as e:
-        click.secho(f"Error: {e}", fg='red')
-
-@cli.command()
-@click.argument('folder_path', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True))
-@click.argument('output_file', type=click.Path(dir_okay=False, writable=True))
-@click.option('--format', 'output_format', type=click.Choice(['json', 'v2'], case_sensitive=False), default='v2', help='The output format. V2 is more readable and efficient.')
-def save(folder_path, output_file, output_format):
-    """Save a folder structure to a text file."""
-    try:
-        path = Path(folder_path)
-        output = Path(output_file)
-        click.echo(f"Reading structure from '{path.name}'...")
-        structure = read_directory_structure(path)
-
-        if output_format == 'v2':
-            output_text = serialize_to_v2(structure)
-        else:
-            output_text = serialize_to_json(structure)
-        
-        output.write_text(output_text, encoding='utf-8')
-        click.secho(f"Successfully saved structure to '{output}' in {output_format.upper()} format.", fg='green')
-    except Exception as e:
-        click.secho(f"Error: {e}", fg='red')
-
-@cli.command()
-@click.argument('destination_path', type=click.Path(file_okay=False, dir_okay=True, resolve_path=True), default='.', required=False)
-def paste(destination_path):
-    """Create a folder structure from text in the clipboard."""
-    try:
-        dest_path = Path(destination_path)
-        dest_path.mkdir(exist_ok=True)
-        
-        text_input = pyperclip.paste()
-        if not text_input:
-            raise ValueError("Clipboard is empty or does not contain text.")
-            
-        click.echo("Reading structure from clipboard...")
-        structure_data = deserialize(text_input)
-        
-        base_creation_path = dest_path
-        if dest_path.name == structure_data['name']:
-            click.secho(f"Destination '{dest_path.name}' matches structure root. Overwriting contents.", fg="yellow")
-            base_creation_path = dest_path.parent
-
-        click.echo(f"Creating structure '{structure_data['name']}' in '{base_creation_path}'...")
-        create_directory_from_structure(structure_data, base_creation_path)
-        click.secho("Folder structure created successfully.", fg='green')
-    except ValueError as e:
-        click.secho(f"Error: {e}", fg='red')
-    except Exception as e:
-        click.secho(f"An unexpected error occurred: {e}", fg='red')
-
-@cli.command()
-@click.argument('input_file', type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True))
-@click.argument('destination_path', type=click.Path(file_okay=False, dir_okay=True, resolve_path=True), default='.', required=False)
-def load(input_file, destination_path):
-    """Create a folder structure from a text file."""
-    try:
-        input_path = Path(input_file)
-        dest_path = Path(destination_path)
-        dest_path.mkdir(exist_ok=True)
-
-        text_input = input_path.read_text(encoding='utf-8')
-        if not text_input:
-            raise ValueError(f"Input file '{input_path}' is empty.")
-        
-        click.echo(f"Reading structure from '{input_path.name}'...")
-        structure_data = deserialize(text_input)
-
-        base_creation_path = dest_path
-        if dest_path.name == structure_data['name']:
-            click.secho(f"Destination '{dest_path.name}' matches structure root. Overwriting contents.", fg="yellow")
-            base_creation_path = dest_path.parent
-
-        click.echo(f"Creating structure '{structure_data['name']}' in '{base_creation_path}'...")
-        create_directory_from_structure(structure_data, base_creation_path)
-        click.secho("Folder structure created successfully.", fg='green')
-    except (ValueError, FileNotFoundError) as e:
-        click.secho(f"Error: {e}", fg='red')
-    except Exception as e:
-        click.secho(f"An unexpected error occurred: {e}", fg='red')
-
-@cli.group()
-def config():
-    """Manage the f2t2f configuration."""
-    pass
-
-@config.command()
-def path():
-    """Prints the path to the configuration file."""
-    config_path = get_config_path()
-    click.echo(f"Your configuration file is located at:")
-    click.secho(str(config_path), fg="green")
-
-@config.command()
-@click.option('--force', is_flag=True, help="Overwrite an existing configuration file.")
-def init(force):
-    """Creates a default configuration file for you to edit."""
-    config_path = get_config_path()
-    if config_path.exists() and not force:
-        click.secho("Configuration file already exists.", fg="yellow")
-        click.echo(f"To overwrite it, run: f2t2f config init --force")
-        click.echo(f"To see its location, run: f2t2f config path")
-        return
+    if data.get("type") != F2T2F_V1_MARKER:
+        raise ValueError(f"Not a V1 f2t2f structure (JSON).")
     
-    save_default_config()
-    click.secho(f"Default configuration file created at:", fg="green")
-    click.echo(str(config_path))
-    click.echo("You can now edit this file to customize the ignored folders and files.")
+    if "data" not in data:
+        raise ValueError("V1 f2t2f structure is missing 'data' key.")
 
-if __name__ == '__main__':
-    cli()
+    return data["data"]
+
+
+# --- V2 Format Constants and Functions ---
+F2T2F_V2_MARKER = "type: f2t2f_folder_structure_v2"
+V2_SEPARATOR = "\n---\n"
+V2_FILE_START_PATTERN = re.compile(r"^>>> file: (.*)$", re.MULTILINE)
+V2_FILE_END_MARKER = "<<<"
+
+def _generate_tree_string(structure: dict, prefix: str = "", is_last: bool = True) -> str:
+    """Recursively generates the string for the tree view."""
+    tree = []
+    name = structure['name']
+    
+    # For the root, just print the name. For children, use connectors.
+    if prefix:
+        tree.append(f"{prefix}{'└── ' if is_last else '├── '}{name}")
+        prefix += "    " if is_last else "│   "
+    else:
+        tree.append(name)
+        prefix = ""
+
+    if structure['type'] == 'folder':
+        children = sorted(structure.get('children', []), key=lambda x: (x['type'], x['name']))
+        for i, child in enumerate(children):
+            tree.append(_generate_tree_string(child, prefix, i == len(children) - 1))
+            
+    return "\n".join(tree)
+
+def _flatten_files(structure: dict, current_path: Path = Path()) -> list:
+    """Recursively finds all files and their full paths."""
+    files = []
+    path = current_path / structure['name']
+    if structure['type'] == 'file':
+        files.append((path, structure.get('content', '')))
+    elif structure['type'] == 'folder':
+        for child in structure.get('children', []):
+            files.extend(_flatten_files(child, path))
+    return files
+
+def serialize_to_v2(folder_data: dict) -> str:
+    """
+    Serializes the folder structure dictionary to the V2 hybrid text format.
+    """
+    parts = []
+    
+    # 1. Header and Tree
+    tree_string = _generate_tree_string(folder_data)
+    header = f"{F2T2F_V2_MARKER}\n---\ntree:\n{tree_string}"
+    parts.append(header)
+
+    # 2. File Content Blocks
+    files = _flatten_files(folder_data)
+    # Sort files by path for consistent output
+    files.sort(key=lambda x: x[0])
+
+    for path, content in files:
+        # Use forward slashes for cross-platform compatibility
+        posix_path = path.as_posix()
+        file_block = f">>> file: {posix_path}\n{content}\n{V2_FILE_END_MARKER}"
+        parts.append(file_block)
+
+    return V2_SEPARATOR.join(parts)
+
+def deserialize_from_v2(v2_string: str) -> dict:
+    """
+    Deserializes a V2 hybrid text string back into a folder structure dictionary.
+    """
+    if not v2_string.strip().startswith(F2T2F_V2_MARKER):
+        raise ValueError("Not a V2 f2t2f structure.")
+
+    parts = v2_string.split(V2_SEPARATOR)
+    
+    # The tree is for humans/AI; we can rebuild the structure from the file paths.
+    # This is more robust than parsing the visual tree.
+    file_content_parts = parts[1:]
+    
+    if not file_content_parts:
+        raise ValueError("V2 format is missing file content blocks.")
+
+    # We need to find the root folder name from the paths
+    all_paths = []
+    for content_part in file_content_parts:
+        match = V2_FILE_START_PATTERN.search(content_part)
+        if match:
+            all_paths.append(Path(match.group(1)))
+    
+    if not all_paths: # Handle case with only empty folders
+        try:
+            tree_part = parts[0].split("tree:\n", 1)[1]
+            root_name = tree_part.strip().split('\n')[0].replace('/', '')
+            return {"name": root_name, "type": "folder", "children": []} # Simplified for now
+        except IndexError:
+            raise ValueError("Could not determine root from V2 format.")
+
+
+    # Determine common root path
+    first_path_parts = all_paths[0].parts
+    root_name = first_path_parts[0]
+    
+    # The root structure
+    root_struct = {"name": root_name, "type": "folder", "children": []}
+    
+    # A map to quickly find folder dictionaries
+    dir_map = {Path(root_name): root_struct}
+    
+    for full_path_str in file_content_parts:
+        match = V2_FILE_START_PATTERN.search(full_path_str)
+        if not match:
+            continue
+            
+        path_str = match.group(1)
+        # Content is what's between the `>` header and the `\n<` trailer
+        content = full_path_str[match.end(0):].strip().rsplit(f"\n{V2_FILE_END_MARKER}", 1)[0]
+        
+        full_path = Path(path_str)
+        
+        # Ensure all parent directories exist in the structure
+        parent_path = Path(full_path.parts[0])
+        for part in full_path.parts[1:-1]:
+            current_path = parent_path / part
+            if current_path not in dir_map:
+                parent_struct = dir_map[parent_path]
+                new_dir_struct = {"name": part, "type": "folder", "children": []}
+                parent_struct['children'].append(new_dir_struct)
+                dir_map[current_path] = new_dir_struct
+            parent_path = current_path
+
+        # Add the file
+        parent_struct = dir_map[full_path.parent]
+        file_struct = {"name": full_path.name, "type": "file", "content": content}
+        parent_struct['children'].append(file_struct)
+        
+    return root_struct
+
+
+# --- Universal Deserializer ---
+
+def deserialize(text_input: str) -> dict:
+    """
+    Intelligently deserializes an input string, trying V1 (JSON) then V2.
+    """
+    stripped_input = text_input.strip()
+    if not stripped_input:
+        raise ValueError("Input is empty.")
+
+    # Try V1 (JSON) first, as it's stricter
+    try:
+        return deserialize_from_json(stripped_input)
+    except (ValueError, json.JSONDecodeError):
+        # If it's not valid V1, proceed to try V2
+        pass
+
+    # Try V2
+    try:
+        return deserialize_from_v2(stripped_input)
+    except ValueError as e:
+        # Re-raise with a more generic error if both fail
+        raise ValueError(f"Input is not a recognized f2t2f format. V2 parser error: {e}")
+
+    raise ValueError("Input is not a recognized f2t2f format.")
