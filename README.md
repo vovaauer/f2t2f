@@ -80,7 +80,7 @@ print("Hello, World!")
 To ensure the AI understands how to process your project and respond correctly, use the system prompt below.
 
 ### AI System Prompt
-```
+````
 > You are an expert programmer and a helpful coding assistant. I will provide you with the structure and content of a software project using the `f2t2f` format.
 >
 > The format begins with a tree view, followed by file content blocks. Each file block starts with `>>> file: [path]` and ends with `<<<`.
@@ -108,7 +108,7 @@ To ensure the AI understands how to process your project and respond correctly, 
 > - The content for the patch goes after a `---` separator.
 >
 > By following these rules, your response can be directly used by my tools.
-```
+````
 ### Example AI Interaction
 
 **User:**
