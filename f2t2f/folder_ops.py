@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import fnmatch
+import click
 
 from .config import load_config
 
@@ -57,3 +58,40 @@ def create_directory_from_structure(structure_data: dict, base_path: Path):
     elif structure_data['type'] == 'file':
         content = structure_data.get('content', '')
         current_path.write_text(content, encoding='utf-8')
+
+def apply_patch(patch_data: dict, base_path: Path):
+    """
+    Applies a patch to a single file.
+    
+    Args:
+        patch_data: A dictionary with 'path', 'action', 'lines', and 'content'.
+        base_path: The root directory where the patch should be applied.
+    """
+    target_file = base_path / patch_data['path']
+    action = patch_data['action']
+    
+    if not target_file.exists():
+        raise FileNotFoundError(f"Cannot apply patch. File not found: {target_file}")
+
+    if action == "replace_lines":
+        start_line, end_line = patch_data['lines']
+        
+        # Human-readable lines (1-indexed) to 0-indexed list
+        start_index = start_line - 1
+        end_index = end_line # The slice will go up to, but not including, this index
+
+        original_lines = target_file.read_text(encoding='utf-8').splitlines()
+
+        if start_index < 0 or end_index > len(original_lines):
+            raise ValueError(f"Line numbers [{start_line}-{end_line}] are out of bounds for file {target_file} which has {len(original_lines)} lines.")
+        
+        new_content_lines = patch_data['content'].splitlines()
+        
+        # Reconstruct the file
+        final_lines = original_lines[:start_index] + new_content_lines + original_lines[end_index:]
+        
+        # Write back, ensuring a trailing newline for POSIX compatibility
+        target_file.write_text('\n'.join(final_lines) + '\n', encoding='utf-8')
+        click.secho(f"  -> Patched lines {start_line}-{end_line} in '{target_file.name}'", fg="cyan")
+    else:
+        raise ValueError(f"Unknown patch action: {action}")
