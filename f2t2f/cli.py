@@ -33,7 +33,9 @@ def _process_input(text_input: str, destination_path: Path):
         # Not a classic format, so we assume it's a set of file/patch blocks
         click.echo("Detected file/patch blocks. Applying changes...")
 
+    changes_applied = False
     for match in block_pattern.finditer(text_input):
+        changes_applied = True
         block_type, path_str, content_with_meta = match.groups()
         target_path = Path(path_str.strip())
         
@@ -45,7 +47,12 @@ def _process_input(text_input: str, destination_path: Path):
             click.secho(f"  -> Created/Replaced file '{target_path}'", fg="green")
 
         elif block_type == "patch":
-            meta, patch_content = content_with_meta.split("\n---\n", 1)
+            # --- THIS IS THE FIXED LINE ---
+            parts = re.split(r'\r?\n---\r?\n', content_with_meta, 1)
+            if len(parts) != 2:
+                raise ValueError(f"Invalid patch for '{target_path}': missing '---' separator.")
+            meta, patch_content = parts
+
             lines_match = re.search(r"lines: (\d+)-(\d+)", meta)
             
             if not lines_match:
@@ -62,10 +69,13 @@ def _process_input(text_input: str, destination_path: Path):
             }
             apply_patch(patch_data, destination_path)
     
+    if not changes_applied:
+        raise ValueError("Input does not contain any valid '>>> file:' or '>>> patch:' blocks.")
+
     click.secho("All operations completed.", fg="bright_green")
 
 
-# --- CLI Commands ---
+# --- CLI Commands (No changes below this line) ---
 
 @click.group()
 def cli():
