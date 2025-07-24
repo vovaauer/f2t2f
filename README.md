@@ -1,8 +1,8 @@
 # f2t2f
 
-A simple CLI tool to convert entire folder structures, including file content, to and from a single, portable text file.
+`f2t2f` (Folder to Text to Folder) is a command-line tool that converts entire folder structures—including all file content—into a single, portable text format. It's perfect for sharing projects, providing context to Large Language Models (LLMs), or creating project templates.
 
-This is extremely useful for sharing complete project structures, providing full context to LLMs for analysis, or creating project templates.
+This tool is designed to be highly resilient, capable of parsing structured text from complex, conversational AI responses.
 
 ## Installation
 
@@ -10,135 +10,121 @@ This is extremely useful for sharing complete project structures, providing full
 pip install f2t2f
 ```
 
-## Usage
+## Core Commands
 
 ### Folder to Text
 
-**To copy the structure of `./my-project` to the clipboard (new v2 format):**
+Use `copy` to send a project's structure to your clipboard or `save` to write it to a file.
+
+**Copy to clipboard:**
 ```bash
+# Copies the entire structure of ./my-project
 f2t2f copy ./my-project
 ```
 
-**To save it to a file instead:**
+**Save to a file:**
 ```bash
-f2t2f save ./my-project structure.txt
-```
-
-**To use the old JSON format:**
-```bash
-f2t2f save ./my-project structure.json --format json
+# Saves the structure to a file named my-project.txt
+f2t2f save ./my-project my-project.txt
 ```
 
 ### Text to Folder
 
-The `paste` and `load` commands are smart and can automatically detect the format (v2 or JSON).
+Use `paste` to apply changes from your clipboard or `load` to apply them from a file. The tool is smart enough to create new files, apply patches to existing ones, or build an entire project from scratch.
 
-**To create a folder structure from your clipboard into the current directory:**
+**Create/patch from clipboard:**
 ```bash
+# Reads from the clipboard and applies changes to the current directory
 f2t2f paste
 ```
 
-**To create it from a file into a specific destination:**
+**Create/patch from a file:**
 ```bash
-f2t2f load structure.txt ./output-folder
+# Reads from my-project.txt and applies changes to ./output-dir
+f2t2f load my-project.txt ./output-dir
 ```
 
-## The `v2` Format (Default)
+## Filtering with `.f2t2f`
 
-`f2t2f` uses a highly readable and efficient hybrid format. It shows the directory tree first for a quick overview, followed by the content of each file in clearly delimited blocks.
+You can control which files and folders are included by creating a `.f2t2f` file in your project's root directory.
 
-For a folder structure like this:
+**To create a configuration file:**
+```bash
+# Creates a sample .f2t2f file in the current directory
+f2t2f list init
 ```
-my_app/
-├── main.py
-└── data/
-    └── config.txt
-```
+This will create a file with `type: blacklist` and instructions. You can change the type to `whitelist` and add file paths, directory paths, or glob patterns (e.g., `*.pyc`, `node_modules/`) to either include or exclude them.
 
-Running `f2t2f copy ./my_app` produces this text:
-
-```text
-type: f2t2f_folder_structure_v2
 ---
-tree:
-my_app
-├── data
-│   └── config.txt
-└── main.py
----
->>> file: my_app/data/config.txt
-setting=True
-<<<
----
->>> file: my_app/main.py
-print("Hello, World!")
-<<<
-```
 
-## Interacting with AI
+## The Ultimate AI System Prompt
 
-To ensure the AI understands how to process your project and respond correctly, use the system prompt below.
+To get perfect, copy-and-paste results from an AI, give it the following system prompt. This prompt instructs the AI to use a format that `f2t2f` is built to understand, including its more resilient features.
 
-### AI System Prompt
-````
-You are an expert programmer and a helpful coding assistant. I will provide you with the structure and content of a software project using the `f2t2f` format.
+````markdown
+You are an expert programmer. Your task is to help me with my project by providing code modifications.
 
-The format begins with a tree view, followed by file content blocks. Each file block starts with `>>> file: [path]` and ends with `<<<`.
+You MUST format your entire response as a single block of text. You can include conversational text and explanations, but all code changes must be encapsulated in `f2t2f` format blocks. The tool I use is smart and will only parse the code blocks, ignoring any surrounding text.
 
-Your task is to analyze the code and provide modifications. When you respond, you MUST use the exact `f2t2f` format.
+**RESPONSE RULES:**
 
-**RULES FOR YOUR RESPONSE:**
-1.  **Strict Formatting:** Your entire response must be a single block of text in the `f2t2f` format. Do not include *any* other text, explanations, apologies, or conversational filler before or after the formatted block.
-2.  **Full Files:** To add a new file or completely replace an existing one, use the `>>> file: [path]` block.
-3.  **Patches for Small Changes:** If I ask you to modify a few lines in an existing file, you MUST use the `patch` format described below to save space.
-4.  **Include Only Changes:** Only include `>>> file:` or `>>> patch:` blocks for files you are adding or modifying. Do not repeat the entire project structure.
+1.  **Create New Files with `file` blocks:** To create a new file, provide its full path and content.
 
-**The `patch` format is as follows:**
-```text
->>> patch: path/to/the/file_to_modify.py
-action: replace_lines
-lines: 21-23
----
-This is the new line 21.
-This is the new line 22.
-This is the new line 23.
-<<<
-```
-- The `lines` field is inclusive.
-- The content for the patch goes after a `---` separator.
-
-By following these rules, your response can be directly used by my tools.
-````
-### Example AI Interaction
-
-**User:**
-> Using the project I provided, please modify lines 10-11 in `f2t2f/cli.py` to add a greeting.
-
-**Correct AI Response:**
-```text
->>> patch: f2t2f/cli.py
-action: replace_lines
-lines: 10-11
----
-    """f2t2f: A tool to convert folder structures to text and back."""
-    click.echo("Welcome to f2t2f!")
-<<<
-```
-
-## Configuration (Optional)
-
-By default, `f2t2f` ignores common files like `__pycache__` and `.git`. To customize this, you can create a configuration file.
-
-1.  **Create the default config file:**
-    ```bash
-    f2t2f config init
+    ```text
+    >>> file: path/to/new_file.py
+    print("This is a new file.")
+    <<<
     ```
 
-2.  **Find its location and edit it:**
-    ```bash
-    f2t2f config path
+2.  **Modify Existing Files with `diff` blocks:** To modify a file, you MUST provide the changes as a standard **unified diff**. The diff MUST include the `--- a/path/to/file` and `+++ b/path/to/file` headers. My tool is smart enough to handle the correct file paths, even if they are nested.
+
+    ```text
+    >>> diff: path/to/existing_file.py
+    --- a/path/to/existing_file.py
+    +++ b/path/to/existing_file.py
+    @@ -1,3 +1,4 @@
+     line 1
+    -line 2 (to be removed)
+    +line 2 (the new line)
+     line 3
+    +line 4 (a new line)
+    <<<
     ```
-    You can then add or remove patterns from the `ignore_patterns` list in that JSON file.
+
+3.  **Encapsulation:** You can wrap the content of `file` or `diff` blocks in markdown code fences (e.g., ` ```diff `) if you need to. My tool will handle it automatically.
+
+**EXAMPLE OF A PERFECT RESPONSE:**
+
+Here is an example of a perfect response that creates one file and modifies another. I can copy this entire message, and my tooling will handle it flawlessly.
+
+***
+
+Of course! I can help with that. Here are the changes to implement the feature you requested. I've created a new utility file and modified the main application file to integrate it.
+
+>>> file: src/utils.js
+export function newUtil() {
+  console.log("This is a new utility function.");
+}
+<<<
+---
+>>> diff: src/app.js
+--- a/src/app.js
++++ b/src/app.js
+@@ -1,3 +1,4 @@
++import { newUtil } from './utils.js';
+ 
+ function main() {
+-  console.log("Hello, old world!");
++  console.log("Hello, new world!");
++  newUtil();
+ }
+ 
+ main();
+<<<
+
+By following these instructions, you guarantee that I can use your response directly and efficiently.
+
+````
 
 ## License
 
