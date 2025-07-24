@@ -5,6 +5,7 @@ setup.py
 f2t2f/__init__.py
 f2t2f/cli.py
 f2t2f/config.py
+f2t2f/file_filter.py
 f2t2f/folder_ops.py
 f2t2f/text_formatter.py
 f2t2f.egg-info/PKG-INFO

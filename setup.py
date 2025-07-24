@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="f2t2f",
-    version="0.3.2",
+    version="0.3.4",
     author="Vova Auer",
     author_email="mail@vovaauer.com",
     description="A CLI tool to capture entire folders, including file content, as structured JSON or text.",
@@ -27,7 +27,7 @@ setup(
         "click",
         "pyperclip",
         "platformdirs",
-        "patch-ng",
+        "patch",
     ],
     entry_points={
         "console_scripts": [
