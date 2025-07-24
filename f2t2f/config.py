@@ -14,7 +14,8 @@ DEFAULT_IGNORE_PATTERNS = [
     ".vscode",
     "build",
     "dist",
-    ".DS_Store"
+    ".DS_Store",
+    ".f2t2f"
 ]
 
 def get_config_path() -> Path:
@@ -37,6 +38,9 @@ def load_config() -> dict:
             user_config = json.load(f)
         if "ignore_patterns" not in user_config:
              user_config["ignore_patterns"] = DEFAULT_IGNORE_PATTERNS
+        # Always ensure .f2t2f is ignored by default
+        if ".f2t2f" not in user_config.get("ignore_patterns", []):
+            user_config.setdefault("ignore_patterns", []).append(".f2t2f")
         return user_config
     except (json.JSONDecodeError, IOError):
         return {"ignore_patterns": DEFAULT_IGNORE_PATTERNS}
