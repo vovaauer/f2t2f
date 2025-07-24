@@ -99,51 +99,45 @@ def _read_directory_recursive_with_list(current_path: Path, root_path: Path, lis
 
 def apply_diff_patch(patch_data: dict, base_path: Path):
     """Applies a patch to a single file from a diff string."""
-    target_path = Path(patch_data["path"])
-    diff_content = patch_data["diff_content"]
-    full_path = base_path / target_path
+    target_path_f2t2f = Path(patch_data["path"])
+    diff_content = patch_data["diff_content"].strip()
 
-    if not full_path.exists():
-        # Maybe the diff is for creating a new file
-        click.secho(f"Warning: File '{target_path}' does not exist. The patch may create it.", fg="yellow")
+    if not diff_content:
+        raise ValueError(f"Diff content for '{target_path_f2t2f}' is empty.")
 
+    # Try to parse the diff first. If it's malformed, we can't proceed.
     patch_set = fromstring(diff_content.encode('utf-8'))
-    
-    # fromstring can return a boolean for some parse outcomes.
-    # We need a PatchSet object with items to proceed. A simple truthiness
-    # check combined with getattr is the most robust way to do this.
     if not patch_set or not getattr(patch_set, 'items', None):
-        raise ValueError(f"Could not parse a valid diff with changes for '{target_path}'.")
+        raise ValueError(f"Could not parse a valid diff from the content for '{target_path_f2t2f}'.")
 
-    # Determine how many path components to strip.
-    # This handles cases where the diff path (e.g., "src/main.py") is relative
-    # to a project root, but the command is run inside that root.
-    try:
-        internal_path_str = patch_set.items[0].target
-        internal_path = Path(internal_path_str)
-        
-        # Count how many parts of the internal path match the target path's parents
-        strip_count = 0
-        if internal_path.name == target_path.name:
-             # Find common ancestor directory parts
-            for p1, p2 in zip(reversed(target_path.parent.parts), reversed(internal_path.parent.parts)):
-                if p1 == p2:
-                    strip_count += 1
-                else:
-                    break
-        # Heuristic: If target path is a/b/c.py and internal is a/b/c.py, we want to strip 2 levels (a and b)
-        # The number of components to strip from the front of the patch's internal path.
-        strip_count = len(internal_path.parent.parts) - strip_count
+    # Now that we have a valid patch_set, determine the correct strip level.
+    internal_path = Path(patch_set.items[0].target)
+    strip_count = 0
+    found_file = False
 
+    # Heuristic: Find the correct file on disk by stripping leading path components
+    # from the path specified inside the diff.
+    for i in range(len(internal_path.parts)):
+        # Create a sub-path by stripping 'i' components.
+        sub_path = Path(*internal_path.parts[i:])
+        if (base_path / sub_path).exists():
+            strip_count = i
+            found_file = True
+            break
+            
+    # If the file doesn't exist, it might be a new file creation.
+    # Guess the strip level by checking for a redundant leading directory.
+    if not found_file:
+        if internal_path.parts and base_path.name == internal_path.parts[0]:
+            strip_count = 1
+        else:
+            strip_count = 0  # Default to no stripping if we can't find the file.
 
-    except (IndexError, AttributeError):
-        strip_count = 0 # Default to no stripping if something goes wrong
-
-    # The patch library's apply method can return False on failure.
+    # Apply the patch with the calculated strip level.
     if patch_set.apply(root=base_path, strip=strip_count):
-        click.secho(f"  -> Successfully applied patch to '{target_path}'", fg="green")
+        click.secho(f"  -> Successfully applied patch to '{target_path_f2t2f}'", fg="green")
     else:
-        raise RuntimeError(f"Failed to apply diff to '{target_path}'. The file content may not match the patch.")
+        raise RuntimeError(f"Failed to apply diff to '{internal_path}' using strip level {strip_count}. The file content may not match the patch.")
 
 
 def create_directory_from_structure(structure_data: dict, base_path: Path):
