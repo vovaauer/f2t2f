@@ -66,10 +66,21 @@ def _process_input(text_input: str, destination_path: Path):
         block_type, path_str, content = match.groups()
         target_path = Path(path_str.strip())
 
+        # First, unfence any potential markdown code block from the content.
+        content = _unfence_code_block(content)
+
+        # If a block is marked 'file' but looks like a diff, treat it as a diff.
+        # This makes the tool more robust to AI outputs.
+        if block_type == "file":
+            is_diff_content = "--- a/" in content and "+++ b/" in content and "@@" in content
+            if is_diff_content:
+                click.secho(f"  -> Detected diff in 'file' block for '{target_path}'. Applying as patch.", fg="cyan")
+                block_type = "diff"  # Upgrade to a diff operation
+
         if block_type == "file":
             full_path = destination_path / target_path
             full_path.parent.mkdir(parents=True, exist_ok=True)
-            full_path.write_text(_unfence_code_block(content), encoding='utf-8')
+            full_path.write_text(content, encoding='utf-8')
             click.secho(f"  -> Created/Replaced file '{target_path}'", fg="green")
 
         elif block_type == "patch":
@@ -85,7 +96,7 @@ def _process_input(text_input: str, destination_path: Path):
             apply_patch(patch_data, destination_path)
 
         elif block_type == "diff":
-            patch_data = {"path": target_path, "diff_content": _unfence_code_block(content)}
+            patch_data = {"path": target_path, "diff_content": content}
             apply_diff_patch(patch_data, destination_path)
     
     if changes_applied:
