@@ -110,8 +110,9 @@ def apply_diff_patch(patch_data: dict, base_path: Path):
     patch_set = fromstring(diff_content.encode('utf-8'))
     
     # fromstring can return a boolean for some parse outcomes.
-    # We need a PatchSet object with items to proceed.
-    if not isinstance(patch_set, fromstring.parser.PatchSet) or not patch_set.items:
+    # We need a PatchSet object with items to proceed. A simple truthiness
+    # check combined with getattr is the most robust way to do this.
+    if not patch_set or not getattr(patch_set, 'items', None):
         raise ValueError(f"Could not parse a valid diff with changes for '{target_path}'.")
 
     # Determine how many path components to strip.
