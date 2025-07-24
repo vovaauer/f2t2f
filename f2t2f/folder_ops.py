@@ -145,6 +145,22 @@ def apply_diff_patch(patch_data: dict, base_path: Path):
         raise RuntimeError(f"Failed to apply diff to '{target_path}'. The file content may not match the patch.")
 
 
+def create_directory_from_structure(structure_data: dict, base_path: Path):
+    """
+    Recursively creates a directory structure and files from a dictionary.
+    """
+    current_path = base_path / structure_data['name']
+
+    if structure_data['type'] == 'folder':
+        current_path.mkdir(exist_ok=True)
+        for child in structure_data.get('children', []):
+            create_directory_from_structure(child, current_path)
+
+    elif structure_data['type'] == 'file':
+        content = structure_data.get('content', '')
+        current_path.write_text(content, encoding='utf-8')
+
+
 def apply_patch(patch_data: dict, base_path: Path):
     """
     Applies a 'replace_lines' patch to a single file.
