@@ -2,7 +2,7 @@ import click
 import pyperclip
 from pathlib import Path
 import re
-from patch import fromstring as diff_fromstring
+from patch import fromstring
 
 from .folder_ops import read_directory_structure, create_directory_from_structure, apply_patch, apply_diff_patch
 from .text_formatter import serialize_to_json, serialize_to_v2, deserialize
@@ -44,7 +44,7 @@ def _process_input(text_input: str, destination_path: Path):
     # --- Strategy 2: Try to parse the entire input as a single unified diff ---
     try:
         diff_content = _unfence_code_block(stripped_input)
-        patch_set = diff_fromstring(diff_content.encode('utf-8'))
+        patch_set = fromstring(diff_content.encode('utf-8'))
         if patch_set and patch_set.items:
             click.echo("Detected a unified diff format. Applying patch...")
             if patch_set.apply(root=destination_path):
@@ -192,12 +192,12 @@ def init(force):
     save_default_config()
     click.secho(f"Default configuration file created at:\n{config_path}", fg="green")
 
-@cli.group()
-def list():
+@cli.group(name="list")
+def list_group():
     """Manage .f2t2f (inclusion/exclusion list) files."""
     pass
 
-@list.command()
+@list_group.command()
 @click.option('--type', 'list_type', type=click.Choice(['whitelist', 'blacklist'], case_sensitive=False), default='blacklist', help='The type of list to create.')
 @click.option('--force', is_flag=True, help="Overwrite an existing .f2t2f file.")
 @click.argument('target_path', type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True), default='.')
